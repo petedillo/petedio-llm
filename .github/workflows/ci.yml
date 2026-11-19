@@ -44,10 +44,10 @@ jobs:
       - name: Compile the standalone binary
         run: |
           bun run build:binary
-          test -x dist/petedio-api-template
+          test -x dist/petedio-llm
 
       # Auth never falls open: with no Access settings the binary must refuse to start, exit code 2.
       - name: Smoke-test the binary
         run: |
-          rc=0; ./dist/petedio-api-template || rc=$?
+          rc=0; ./dist/petedio-llm || rc=$?
           test "$rc" -eq 2
