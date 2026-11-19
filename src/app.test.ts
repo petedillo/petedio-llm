@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createApp } from "./app";
+import { Gateway, Tracker } from "./llm";
 import { createVerifier } from "./auth";
 import { ConfigError, loadConfig } from "./config";
 
@@ -121,5 +122,38 @@ describe("Cloudflare Access JWT", () => {
   });
   test("an unknown path is 404 once authenticated", async () => {
     expect((await call(app, "/nope", await token())).status).toBe(404);
+  });
+});
+
+describe("llm routes", () => {
+  const mk = () => {
+    const tracker = new Tracker({ line: () => {} });
+    const gateway = new Gateway({
+      tracker,
+      haikuMonthlyCapUsd: 100,
+      providers: { ollama: { model: "m", concurrency: 1, usdPerMTokIn: 0, usdPerMTokOut: 0, timeoutMs: 500, call: async () => ({ text: "hi", tokensIn: 3, tokensOut: 2 }) } },
+    });
+    return createApp({ verifier, llm: { gateway, tracker, askToken: "tok", capUsd: 100 } });
+  };
+  const ask = (app: ReturnType<typeof createApp>, body: unknown, auth = "Bearer tok") =>
+    app(new Request("http://x/v1/ask", { method: "POST", headers: { authorization: auth }, body: JSON.stringify(body) }));
+
+  test("ask refuses a wrong or missing bearer", async () => {
+    expect((await ask(mk(), { caller: "t", provider: "ollama", prompt: "p" }, "Bearer no")).status).toBe(401);
+  });
+  test("ask refuses unknown fields and bad providers", async () => {
+    expect((await ask(mk(), { caller: "t", provider: "ollama", prompt: "p", extra: 1 })).status).toBe(400);
+    expect((await ask(mk(), { caller: "t", provider: "gpt", prompt: "p" })).status).toBe(400);
+  });
+  test("ask runs, audits, and the audit routes need an Access token", async () => {
+    const app = mk();
+    const r = await ask(app, { caller: "t", provider: "ollama", prompt: "p" });
+    expect(r.status).toBe(200);
+    expect(((await r.json()) as { text: string }).text).toBe("hi");
+    expect((await call(app, "/api/llm/calls")).status).toBe(401);
+    const c = await call(app, "/api/llm/calls", await token());
+    expect(((await c.json()) as { examined: number }).examined).toBe(1);
+    const u = await call(app, "/api/llm/usage", await token());
+    expect(u.status).toBe(200);
   });
 });
