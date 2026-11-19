@@ -1,0 +1,24 @@
+{
+  "name": "petedio-api-template",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src/",
+    "test": "bun test",
+    "build:binary": "bun build src/index.ts --compile --target=bun-linux-x64 --outfile dist/petedio-api-template"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@types/bun": "1.4.4",
+    "eslint": "^9.0.0",
+    "typescript": "^5.6.0",
+    "typescript-eslint": "^8.0.0"
+  },
+  "engines": {
+    "bun": ">=1.4.4"
+  }
+}
